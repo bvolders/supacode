@@ -52,6 +52,9 @@ struct WorktreeDetailView: View {
             store.send(.repositories(.consumeTerminalFocus(selectedWorktree.id)))
           }
         }
+      } else if let remoteWorktreeID = state.remote.remoteSelectedWorktreeID {
+        RemoteTerminalPlaceholderView(worktreeID: remoteWorktreeID)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
       } else {
         EmptyStateView(store: store.scope(state: \.repositories, action: \.repositories))
       }
@@ -464,4 +467,21 @@ private struct WorktreeToolbarPreview: View {
 
 #Preview("Worktree Toolbar") {
   WorktreeToolbarPreview()
+}
+
+private struct RemoteTerminalPlaceholderView: View {
+  let worktreeID: String
+
+  var body: some View {
+    VStack(spacing: 12) {
+      Image(systemName: "network")
+        .font(.largeTitle)
+        .foregroundStyle(.secondary)
+      Text("Remote Terminal")
+        .font(.headline)
+      Text("Worktree: \(worktreeID)")
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    }
+  }
 }
