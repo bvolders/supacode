@@ -1,10 +1,17 @@
 import ComposableArchitecture
+import Network
 import Testing
 
 @testable import supacode
 
 @MainActor
 struct RemoteFeatureTests {
+  private static let testServer = DiscoveredServer(
+    id: "test-server",
+    name: "Test Mac",
+    endpoint: NWEndpoint.hostPort(host: "127.0.0.1", port: 9999),
+  )
+
   @Test func toggleServerStartsAndStops() async {
     let startCalled = LockIsolated(false)
     let stopCalled = LockIsolated(false)
@@ -78,13 +85,13 @@ struct RemoteFeatureTests {
     }
   }
 
-  @Test func serverEventClientConnectedUpdatesState() async {
+  @Test func serverEventClientConnectedSetsPendingState() async {
     let store = TestStore(initialState: RemoteFeature.State()) {
       RemoteFeature()
     }
 
     await store.send(.remoteServerEvent(.clientConnected(name: "iPhone"))) {
-      $0.connectedClientName = "iPhone"
+      $0.pendingConnectionName = "iPhone"
     }
   }
 
@@ -98,6 +105,19 @@ struct RemoteFeatureTests {
 
     await store.send(.remoteServerEvent(.clientDisconnected)) {
       $0.connectedClientName = nil
+    }
+  }
+
+  @Test func serverEventClientDisconnectedClearsPendingConnection() async {
+    var state = RemoteFeature.State()
+    state.pendingConnectionName = "iPhone"
+
+    let store = TestStore(initialState: state) {
+      RemoteFeature()
+    }
+
+    await store.send(.remoteServerEvent(.clientDisconnected)) {
+      $0.pendingConnectionName = nil
     }
   }
 
@@ -191,5 +211,242 @@ struct RemoteFeatureTests {
       $0.isServerEnabled = false
       $0.connectedClientName = nil
     }
+  }
+
+  // MARK: - Connection Approval Tests
+
+  @Test func approveConnectionMovePendingToConnected() async {
+    var state = RemoteFeature.State()
+    state.pendingConnectionName = "iPhone"
+
+    let store = TestStore(initialState: state) {
+      RemoteFeature()
+    }
+
+    await store.send(.approveConnection) {
+      $0.connectedClientName = "iPhone"
+      $0.pendingConnectionName = nil
+    }
+  }
+
+  @Test func approveConnectionDoesNothingWithoutPending() async {
+    let store = TestStore(initialState: RemoteFeature.State()) {
+      RemoteFeature()
+    }
+
+    await store.send(.approveConnection)
+  }
+
+  @Test func denyConnectionClearsPendingAndDisconnectsClient() async {
+    let disconnectClientCalled = LockIsolated(false)
+    var state = RemoteFeature.State()
+    state.pendingConnectionName = "iPhone"
+
+    let store = TestStore(initialState: state) {
+      RemoteFeature()
+    } withDependencies: {
+      $0.remoteServerClient.disconnectClient = { disconnectClientCalled.withValue { $0 = true } }
+    }
+
+    await store.send(.denyConnection) {
+      $0.pendingConnectionName = nil
+    }
+    #expect(disconnectClientCalled.value)
+  }
+
+  @Test func toggleServerOffClearsPendingConnection() async {
+    var state = RemoteFeature.State()
+    state.isServerEnabled = true
+    state.pendingConnectionName = "iPhone"
+
+    let store = TestStore(initialState: state) {
+      RemoteFeature()
+    } withDependencies: {
+      $0.remoteServerClient.stop = {}
+    }
+
+    await store.send(.toggleServer) {
+      $0.isServerEnabled = false
+      $0.pendingConnectionName = nil
+    }
+  }
+
+  // MARK: - Reconnection Tests
+
+  @Test func connectToServerSavesLastConnectedServer() async {
+    let store = TestStore(initialState: RemoteFeature.State()) {
+      RemoteFeature()
+    } withDependencies: {
+      $0.remoteConnectionClient.connect = { _ in }
+    }
+
+    await store.send(.connectToServer(Self.testServer)) {
+      $0.lastConnectedServer = Self.testServer
+    }
+  }
+
+  @Test func disconnectEventTriggersReconnectWhenServerKnown() async {
+    let clock = TestClock()
+    let connectCalled = LockIsolated(false)
+
+    var state = RemoteFeature.State()
+    state.connectedServerName = "Test Mac"
+    state.lastConnectedServer = Self.testServer
+
+    let store = TestStore(initialState: state) {
+      RemoteFeature()
+    } withDependencies: {
+      $0.continuousClock = clock
+      $0.remoteConnectionClient.connect = { _ in connectCalled.withValue { $0 = true } }
+    }
+
+    await store.send(.remoteConnectionEvent(.disconnected)) {
+      $0.connectedServerName = nil
+      $0.remoteRepositories = []
+      $0.remoteSelectedWorktreeID = nil
+      $0.isReconnecting = true
+    }
+
+    await store.receive(.attemptReconnect) {
+      $0.reconnectAttempt = 1
+    }
+
+    await clock.advance(by: .seconds(1))
+    #expect(connectCalled.value)
+  }
+
+  @Test func disconnectEventDoesNotReconnectWithoutLastServer() async {
+    var state = RemoteFeature.State()
+    state.connectedServerName = "Test Mac"
+
+    let store = TestStore(initialState: state) {
+      RemoteFeature()
+    }
+
+    await store.send(.remoteConnectionEvent(.disconnected)) {
+      $0.connectedServerName = nil
+      $0.remoteRepositories = []
+      $0.remoteSelectedWorktreeID = nil
+    }
+  }
+
+  @Test func manualDisconnectCancelsReconnection() async {
+    var state = RemoteFeature.State()
+    state.connectedServerName = "Test Mac"
+    state.isReconnecting = true
+    state.reconnectAttempt = 3
+    state.lastConnectedServer = Self.testServer
+
+    let store = TestStore(initialState: state) {
+      RemoteFeature()
+    } withDependencies: {
+      $0.remoteConnectionClient.disconnect = {}
+    }
+
+    await store.send(.disconnect) {
+      $0.isReconnecting = false
+      $0.reconnectAttempt = 0
+      $0.lastConnectedServer = nil
+      $0.connectedServerName = nil
+      $0.remoteRepositories = []
+      $0.remoteSelectedWorktreeID = nil
+    }
+  }
+
+  @Test func successfulReconnectResetsAttemptCounter() async {
+    var state = RemoteFeature.State()
+    state.isReconnecting = true
+    state.reconnectAttempt = 5
+    state.lastConnectedServer = Self.testServer
+
+    let store = TestStore(initialState: state) {
+      RemoteFeature()
+    }
+
+    await store.send(.remoteConnectionEvent(.connected(serverName: "Test Mac"))) {
+      $0.connectedServerName = "Test Mac"
+      $0.isReconnecting = false
+      $0.reconnectAttempt = 0
+    }
+  }
+
+  @Test func exponentialBackoffDelayCalculation() async {
+    let clock = TestClock()
+    let connectAttempts = LockIsolated(0)
+
+    var state = RemoteFeature.State()
+    state.isReconnecting = true
+    state.lastConnectedServer = Self.testServer
+
+    let store = TestStore(initialState: state) {
+      RemoteFeature()
+    } withDependencies: {
+      $0.continuousClock = clock
+      $0.remoteConnectionClient.connect = { _ in connectAttempts.withValue { $0 += 1 } }
+    }
+
+    // First attempt: 1 second delay
+    await store.send(.attemptReconnect) {
+      $0.reconnectAttempt = 1
+    }
+    await clock.advance(by: .seconds(1))
+    #expect(connectAttempts.value == 1)
+
+    // Second attempt: 2 second delay
+    state.reconnectAttempt = 1
+    await store.send(.attemptReconnect) {
+      $0.reconnectAttempt = 2
+    }
+    await clock.advance(by: .seconds(2))
+    #expect(connectAttempts.value == 2)
+
+    // Third attempt: 4 second delay
+    await store.send(.attemptReconnect) {
+      $0.reconnectAttempt = 3
+    }
+    await clock.advance(by: .seconds(4))
+    #expect(connectAttempts.value == 3)
+  }
+
+  @Test func maxReconnectAttemptsStopsReconnecting() async {
+    var state = RemoteFeature.State()
+    state.isReconnecting = true
+    state.reconnectAttempt = 10
+    state.lastConnectedServer = Self.testServer
+
+    let store = TestStore(initialState: state) {
+      RemoteFeature()
+    }
+
+    await store.send(.attemptReconnect) {
+      $0.isReconnecting = false
+      $0.reconnectAttempt = 0
+      $0.lastConnectedServer = nil
+    }
+  }
+
+  @Test func cancelReconnectClearsReconnectionState() async {
+    var state = RemoteFeature.State()
+    state.isReconnecting = true
+    state.reconnectAttempt = 3
+    state.lastConnectedServer = Self.testServer
+
+    let store = TestStore(initialState: state) {
+      RemoteFeature()
+    }
+
+    await store.send(.cancelReconnect) {
+      $0.isReconnecting = false
+      $0.reconnectAttempt = 0
+      $0.lastConnectedServer = nil
+    }
+  }
+
+  @Test func attemptReconnectDoesNothingWhenNotReconnecting() async {
+    let store = TestStore(initialState: RemoteFeature.State()) {
+      RemoteFeature()
+    }
+
+    await store.send(.attemptReconnect)
   }
 }

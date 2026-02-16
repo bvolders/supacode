@@ -607,6 +607,55 @@ struct AppFeature {
       case .commandPalette:
         return .none
 
+      case .remote(._forwardToApp(let remoteAction)):
+        switch remoteAction {
+        case .selectWorktree(let id):
+          return .send(.repositories(.selectWorktree(id)))
+
+        case .createWorktree(let repositoryID, _):
+          // Use createRandomWorktreeInRepository which auto-generates branch name.
+          // The branchName from the remote action is ignored since the existing action uses random names.
+          return .send(.repositories(.createRandomWorktreeInRepository(repositoryID)))
+
+        case .deleteWorktree(let id):
+          if let repoID = state.repositories.repositoryID(for: id) {
+            return .send(.repositories(.requestDeleteWorktree(id, repoID)))
+          }
+          return .none
+
+        case .createTab(let worktreeID):
+          guard let worktree = state.repositories.worktree(for: worktreeID) else {
+            return .none
+          }
+          return .run { _ in
+            await terminalClient.send(.createTab(worktree, runSetupScriptIfNew: false))
+          }
+
+        case .closeTab, .selectTab:
+          // TODO: Wire in Phase 4
+          return .none
+
+        case .runScript(let worktreeID, let script):
+          guard let worktree = state.repositories.worktree(for: worktreeID) else {
+            return .none
+          }
+          state.selectedRunScript = script
+          return .merge(
+            .send(.repositories(.selectWorktree(worktreeID))),
+            .run { _ in
+              await terminalClient.send(.runScript(worktree, script: script))
+            }
+          )
+
+        case .stopRunScript(let worktreeID):
+          guard let worktree = state.repositories.worktree(for: worktreeID) else {
+            return .none
+          }
+          return .run { _ in
+            await terminalClient.send(.stopRunScript(worktree))
+          }
+        }
+
       case .remote:
         return .none
 

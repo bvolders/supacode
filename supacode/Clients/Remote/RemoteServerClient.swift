@@ -4,6 +4,7 @@ import Foundation
 struct RemoteServerClient {
   var start: @MainActor @Sendable () throws -> Void
   var stop: @MainActor @Sendable () -> Void
+  var disconnectClient: @MainActor @Sendable () -> Void
   var isRunning: @MainActor @Sendable () -> Bool
   var isClientConnected: @MainActor @Sendable () -> Bool
   var sendStateSnapshot: @MainActor @Sendable (RemoteStateSnapshot) -> Void
@@ -23,6 +24,7 @@ extension RemoteServerClient: DependencyKey {
   static let liveValue = RemoteServerClient(
     start: { fatalError("RemoteServerClient.start not configured") },
     stop: { fatalError("RemoteServerClient.stop not configured") },
+    disconnectClient: { fatalError("RemoteServerClient.disconnectClient not configured") },
     isRunning: { false },
     isClientConnected: { false },
     sendStateSnapshot: { _ in },
@@ -32,6 +34,7 @@ extension RemoteServerClient: DependencyKey {
   static let testValue = RemoteServerClient(
     start: {},
     stop: {},
+    disconnectClient: {},
     isRunning: { false },
     isClientConnected: { false },
     sendStateSnapshot: { _ in },
