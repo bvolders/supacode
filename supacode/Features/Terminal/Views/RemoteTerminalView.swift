@@ -74,7 +74,11 @@ final class RemoteTerminalMTKView: MTKView {
     let blitEncoder = commandBuffer?.makeBlitCommandEncoder()
     let destTexture = currentDrawable.texture
 
-    let sourceSize = MTLSize(width: min(width, destTexture.width), height: min(height, destTexture.height), depth: 1)
+    let sourceSize = MTLSize(
+      width: min(width, destTexture.width),
+      height: min(height, destTexture.height),
+      depth: 1,
+    )
     blitEncoder?.copy(
       from: sourceTexture,
       sourceSlice: 0,
