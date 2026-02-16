@@ -393,7 +393,6 @@ struct RemoteFeatureTests {
     #expect(connectAttempts.value == 1)
 
     // Second attempt: 2 second delay
-    state.reconnectAttempt = 1
     await store.send(.attemptReconnect) {
       $0.reconnectAttempt = 2
     }
