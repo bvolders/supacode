@@ -25,7 +25,7 @@ nonisolated struct RemoteKeyEvent: Codable, Equatable, Sendable {
   let isKeyDown: Bool
 }
 
-enum RemoteModifier: String, Codable, Sendable {
+enum RemoteModifier: String, Codable, Equatable, Sendable {
   case shift
   case control
   case option
