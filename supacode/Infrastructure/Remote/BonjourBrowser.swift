@@ -1,0 +1,70 @@
+import Foundation
+import Network
+
+nonisolated struct DiscoveredServer: Identifiable, Equatable, Sendable {
+  let id: String
+  let name: String
+  let endpoint: NWEndpoint
+
+  nonisolated static func == (lhs: DiscoveredServer, rhs: DiscoveredServer) -> Bool {
+    lhs.id == rhs.id && lhs.name == rhs.name
+  }
+}
+
+@MainActor
+@Observable
+final class BonjourBrowser {
+  static let serviceType = BonjourAdvertiser.serviceType
+
+  private(set) var discoveredServers: [DiscoveredServer] = []
+  private(set) var isBrowsing = false
+  private var browser: NWBrowser?
+  private let logger = SupaLogger("Remote")
+
+  func startBrowsing() {
+    let params = NWParameters()
+    params.includePeerToPeer = true
+    let browser = NWBrowser(
+      for: .bonjour(type: Self.serviceType, domain: nil),
+      using: params,
+    )
+    browser.stateUpdateHandler = { [weak self] state in
+      Task { @MainActor in
+        guard let self else { return }
+        switch state {
+        case .ready:
+          self.isBrowsing = true
+          self.logger.info("Browsing for servers")
+        case .failed(let error):
+          self.logger.warning("Browser failed: \(error)")
+          self.isBrowsing = false
+        case .cancelled:
+          self.isBrowsing = false
+        default:
+          break
+        }
+      }
+    }
+    browser.browseResultsChangedHandler = { [weak self] results, _ in
+      Task { @MainActor in
+        self?.discoveredServers = results.compactMap { result in
+          guard case let .service(name, _, _, _) = result.endpoint else { return nil }
+          return DiscoveredServer(
+            id: name,
+            name: name,
+            endpoint: result.endpoint,
+          )
+        }
+      }
+    }
+    browser.start(queue: .main)
+    self.browser = browser
+  }
+
+  func stopBrowsing() {
+    browser?.cancel()
+    browser = nil
+    isBrowsing = false
+    discoveredServers = []
+  }
+}
