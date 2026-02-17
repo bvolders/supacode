@@ -23,6 +23,7 @@ struct AppFeature {
     var settings: SettingsFeature.State
     var updates = UpdatesFeature.State()
     var commandPalette = CommandPaletteFeature.State()
+    var remote = RemoteFeature.State()
     var openActionSelection: OpenWorktreeAction = .finder
     var selectedRunScript: String = ""
     var runScriptDraft: String = ""
@@ -50,6 +51,7 @@ struct AppFeature {
     case settings(SettingsFeature.Action)
     case updates(UpdatesFeature.Action)
     case commandPalette(CommandPaletteFeature.Action)
+    case remote(RemoteFeature.Action)
     case openActionSelectionChanged(OpenWorktreeAction)
     case worktreeSettingsLoaded(RepositorySettings, worktreeID: Worktree.ID)
     case openSelectedWorktree
@@ -180,21 +182,34 @@ struct AppFeature {
       case .repositories(.delegate(.worktreeCreated(let worktree))):
         let shouldRunSetupScript =
           state.repositories.pendingSetupScriptWorktreeIDs.contains(worktree.id)
-        return .run { _ in
-          await terminalClient.send(
-            .ensureInitialTab(
-              worktree,
-              runSetupScriptIfNew: shouldRunSetupScript,
-              focusing: false
+        let shouldSyncRemote = state.remote.connectedClientName != nil
+        let remoteSync: Effect<Action> =
+          shouldSyncRemote
+          ? .send(.remote(.sendStateSnapshot(Self.buildStateSnapshot(from: state))))
+          : .none
+        return .merge(
+          .run { _ in
+            await terminalClient.send(
+              .ensureInitialTab(
+                worktree,
+                runSetupScriptIfNew: shouldRunSetupScript,
+                focusing: false
+              )
             )
-          )
-        }
+          },
+          remoteSync
+        )
 
       case .repositories(.delegate(.repositoriesChanged(let repositories))):
         let ids = Set(repositories.flatMap { $0.worktrees.map(\.id) })
         let recencyIDs = CommandPaletteFeature.recencyRetentionIDs(from: repositories)
         let worktrees = state.repositories.worktreesForInfoWatcher()
+        let shouldSyncRemote = state.remote.connectedClientName != nil
         state.runScriptStatusByWorktreeID = state.runScriptStatusByWorktreeID.filter { ids.contains($0.key) }
+        let remoteSync: Effect<Action> =
+          shouldSyncRemote
+          ? .send(.remote(.sendStateSnapshot(Self.buildStateSnapshot(from: state))))
+          : .none
         if case .repository(let repositoryID)? = state.settings.selection,
           !repositories.contains(where: { $0.id == repositoryID })
         {
@@ -206,7 +221,8 @@ struct AppFeature {
             },
             .run { _ in
               await worktreeInfoWatcher.send(.setWorktrees(worktrees))
-            }
+            },
+            remoteSync
           )
         }
         return .merge(
@@ -216,7 +232,8 @@ struct AppFeature {
           },
           .run { _ in
             await worktreeInfoWatcher.send(.setWorktrees(worktrees))
-          }
+          },
+          remoteSync
         )
 
       case .repositories(.delegate(.openRepositorySettings(let repositoryID))):
@@ -244,7 +261,7 @@ struct AppFeature {
             rootURL: repository.rootURL,
             settings: repositorySettings
           )
-        case .general, .notifications, .worktree, .updates, .advanced, .github:
+        case .general, .notifications, .worktree, .updates, .advanced, .github, .remote:
           state.settings.repositorySettings = nil
         }
         return .none
@@ -605,6 +622,61 @@ struct AppFeature {
       case .commandPalette:
         return .none
 
+      case .remote(.approveConnection):
+        let snapshot = Self.buildStateSnapshot(from: state)
+        return .send(.remote(.sendStateSnapshot(snapshot)))
+
+      case .remote(.forwardToApp(let remoteAction)):
+        switch remoteAction {
+        case .selectWorktree(let id):
+          return .send(.repositories(.selectWorktree(id)))
+
+        case .createWorktree(let repositoryID, _):
+          // Use createRandomWorktreeInRepository which auto-generates branch name.
+          // The branchName from the remote action is ignored since the existing action uses random names.
+          return .send(.repositories(.createRandomWorktreeInRepository(repositoryID)))
+
+        case .deleteWorktree(let id):
+          if let repoID = state.repositories.repositoryID(for: id) {
+            return .send(.repositories(.requestDeleteWorktree(id, repoID)))
+          }
+          return .none
+
+        case .createTab(let worktreeID):
+          guard let worktree = state.repositories.worktree(for: worktreeID) else {
+            return .none
+          }
+          return .run { _ in
+            await terminalClient.send(.createTab(worktree, runSetupScriptIfNew: false))
+          }
+
+        case .closeTab, .selectTab:
+          return .none
+
+        case .runScript(let worktreeID, let script):
+          guard let worktree = state.repositories.worktree(for: worktreeID) else {
+            return .none
+          }
+          state.selectedRunScript = script
+          return .merge(
+            .send(.repositories(.selectWorktree(worktreeID))),
+            .run { _ in
+              await terminalClient.send(.runScript(worktree, script: script))
+            }
+          )
+
+        case .stopRunScript(let worktreeID):
+          guard let worktree = state.repositories.worktree(for: worktreeID) else {
+            return .none
+          }
+          return .run { _ in
+            await terminalClient.send(.stopRunScript(worktree))
+          }
+        }
+
+      case .remote:
+        return .none
+
       case .terminalEvent(.notificationReceived(let worktreeID, _, _)):
         var effects: [Effect<Action>] = [
           .send(.repositories(.worktreeNotificationReceived(worktreeID)))
@@ -666,5 +738,31 @@ struct AppFeature {
     Scope(state: \.commandPalette, action: \.commandPalette) {
       CommandPaletteFeature()
     }
+    Scope(state: \.remote, action: \.remote) {
+      RemoteFeature()
+    }
+  }
+
+  static func buildStateSnapshot(from state: State) -> RemoteStateSnapshot {
+    let repos = state.repositories.repositories.map { repo in
+      RemoteRepository(
+        id: repo.id,
+        name: repo.name,
+        worktrees: repo.worktrees.map { worktree in
+          let info = state.repositories.worktreeInfoByID[worktree.id]
+            .map(RemoteWorktreeInfo.init(from:))
+          return RemoteWorktree(
+            from: worktree,
+            tabs: [],
+            info: info,
+            taskStatus: .idle,
+          )
+        },
+      )
+    }
+    return RemoteStateSnapshot(
+      repositories: repos,
+      selectedWorktreeID: state.repositories.selectedWorktreeID,
+    )
   }
 }

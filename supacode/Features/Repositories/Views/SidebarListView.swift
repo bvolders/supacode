@@ -113,23 +113,7 @@ struct SidebarListView: View {
     }
     .listStyle(.sidebar)
     .frame(minWidth: 220)
-    .onDragSessionUpdated { session in
-      if case .ended = session.phase {
-        if isDragActive {
-          isDragActive = false
-        }
-        return
-      }
-      if case .dataTransferCompleted = session.phase {
-        if isDragActive {
-          isDragActive = false
-        }
-        return
-      }
-      if !isDragActive {
-        isDragActive = true
-      }
-    }
+    .modifier(DragSessionUpdatedModifier(isDragActive: $isDragActive))
     .safeAreaInset(edge: .bottom) {
       SidebarFooterView(store: store)
     }
@@ -158,6 +142,28 @@ struct SidebarListView: View {
       else { return .ignored }
       terminalState.focusAndInsertText(keyPress.characters)
       return .handled
+    }
+  }
+}
+
+private struct DragSessionUpdatedModifier: ViewModifier {
+  @Binding var isDragActive: Bool
+
+  func body(content: Content) -> some View {
+    if #available(macOS 26.0, *) {
+      content.onDragSessionUpdated { session in
+        if case .ended = session.phase {
+          if isDragActive { isDragActive = false }
+          return
+        }
+        if case .dataTransferCompleted = session.phase {
+          if isDragActive { isDragActive = false }
+          return
+        }
+        if !isDragActive { isDragActive = true }
+      }
+    } else {
+      content
     }
   }
 }

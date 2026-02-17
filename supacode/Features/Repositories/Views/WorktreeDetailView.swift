@@ -52,6 +52,9 @@ struct WorktreeDetailView: View {
             store.send(.repositories(.consumeTerminalFocus(selectedWorktree.id)))
           }
         }
+      } else if let remoteWorktreeID = state.remote.remoteSelectedWorktreeID {
+        RemoteTerminalPlaceholderView(worktreeID: remoteWorktreeID)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
       } else {
         EmptyStateView(store: store.scope(state: \.repositories, action: \.repositories))
       }
@@ -219,7 +222,7 @@ struct WorktreeDetailView: View {
         )
       }
 
-      ToolbarSpacer(.flexible)
+      ToolbarItem { Spacer() }
 
       ToolbarItemGroup {
         ToolbarStatusView(
@@ -230,7 +233,7 @@ struct WorktreeDetailView: View {
       }
 
       if !toolbarState.notificationGroups.isEmpty {
-        ToolbarSpacer(.fixed)
+        ToolbarItem { Spacer().frame(width: 8) }
         ToolbarItemGroup {
           ToolbarNotificationsPopoverButton(
             groups: toolbarState.notificationGroups,
@@ -241,7 +244,7 @@ struct WorktreeDetailView: View {
         }
       }
 
-      ToolbarSpacer(.flexible)
+      ToolbarItem { Spacer() }
 
       ToolbarItemGroup {
         openMenu(
@@ -249,7 +252,7 @@ struct WorktreeDetailView: View {
           showExtras: toolbarState.showExtras
         )
       }
-      ToolbarSpacer(.fixed)
+      ToolbarItem { Spacer().frame(width: 8) }
 
       if toolbarState.runScriptIsRunning || toolbarState.runScriptEnabled {
         ToolbarItem {
@@ -464,4 +467,22 @@ private struct WorktreeToolbarPreview: View {
 
 #Preview("Worktree Toolbar") {
   WorktreeToolbarPreview()
+}
+
+private struct RemoteTerminalPlaceholderView: View {
+  let worktreeID: String
+
+  var body: some View {
+    VStack(spacing: 12) {
+      Image(systemName: "network")
+        .font(.largeTitle)
+        .foregroundStyle(.secondary)
+        .accessibilityHidden(true)
+      Text("Remote Terminal")
+        .font(.headline)
+      Text("Worktree: \(worktreeID)")
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    }
+  }
 }

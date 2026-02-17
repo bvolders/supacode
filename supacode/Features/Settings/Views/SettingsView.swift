@@ -41,6 +41,8 @@ struct SettingsView: View {
             .tag(SettingsSection.advanced)
           Label("GitHub", systemImage: "arrow.triangle.branch")
             .tag(SettingsSection.github)
+          Label("Remote", systemImage: "network")
+            .tag(SettingsSection.remote)
 
           Section("Repositories") {
             ForEach(repositories) { repository in
@@ -91,6 +93,12 @@ struct SettingsView: View {
           GithubSettingsView(store: settingsStore)
             .navigationTitle("GitHub")
             .navigationSubtitle("GitHub CLI integration")
+        }
+      case .remote:
+        SettingsDetailView {
+          RemoteSettingsView(remoteStore: store.scope(state: \.remote, action: \.remote))
+            .navigationTitle("Remote")
+            .navigationSubtitle("Remote control and connections")
         }
       case .repository(let repositoryID):
         if let repository = repositories[id: repositoryID] {

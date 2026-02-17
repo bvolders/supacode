@@ -126,6 +126,9 @@ struct SupacodeApp: App {
     _worktreeInfoWatcher = State(initialValue: worktreeInfoWatcher)
     let keyObserver = CommandKeyObserver()
     _commandKeyObserver = State(initialValue: keyObserver)
+    let webSocketServer = WebSocketServer()
+    let webSocketClient = WebSocketClient()
+    let bonjourBrowser = BonjourBrowser()
     let appStore = Store(
       initialState: AppFeature.State(settings: SettingsFeature.State(settings: initialSettings))
     ) {
@@ -148,6 +151,8 @@ struct SupacodeApp: App {
           worktreeInfoWatcher.eventStream()
         }
       )
+      values.remoteServerClient = .live(server: webSocketServer)
+      values.remoteConnectionClient = .live(client: webSocketClient, browser: bonjourBrowser)
     }
     _store = State(initialValue: appStore)
     appDelegate.appStore = appStore
