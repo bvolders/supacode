@@ -8,6 +8,7 @@ final class WebSocketServer {
   private(set) var pendingSendCount = 0
   private var connection: NWConnection?
   private let advertiser: BonjourAdvertiser
+  private let tlsCertificateManager = TLSCertificateManager()
   private let logger = SupaLogger("Remote")
   var onMessageReceived: ((RemoteMessageType, Data) -> Void)?
   var onClientDisconnected: (() -> Void)?
@@ -19,7 +20,8 @@ final class WebSocketServer {
   var isRunning: Bool { advertiser.isAdvertising }
 
   func start() throws {
-    try advertiser.start { [weak self] connection in
+    let identity = try tlsCertificateManager.loadOrCreateIdentity()
+    try advertiser.start(tlsIdentity: identity) { [weak self] connection in
       Task { @MainActor in
         self?.handleNewConnection(connection)
       }
