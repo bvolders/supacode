@@ -5,6 +5,7 @@ import Network
 @Observable
 final class WebSocketServer {
   private(set) var isClientConnected = false
+  private(set) var pendingSendCount = 0
   private var connection: NWConnection?
   private let advertiser: BonjourAdvertiser
   private let logger = SupaLogger("Remote")
@@ -40,13 +41,15 @@ final class WebSocketServer {
       identifier: "remote",
       metadata: [metadata],
     )
+    pendingSendCount += 1
     connection.send(
       content: frame,
       contentContext: context,
       isComplete: true,
       completion: .contentProcessed { [weak self] error in
-        if let error {
-          Task { @MainActor in
+        Task { @MainActor in
+          self?.pendingSendCount -= 1
+          if let error {
             self?.logger.warning("Send error: \(error)")
           }
         }
