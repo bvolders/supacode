@@ -132,6 +132,18 @@ final class SurfaceVideoEncoder {
     isEncoding = false
   }
 
+  func updateBitrate(_ bps: Int) {
+    guard let session else { return }
+    let status = VTSessionSetProperty(
+      session,
+      key: kVTCompressionPropertyKey_AverageBitRate,
+      value: bps as CFNumber,
+    )
+    if status != noErr {
+      logger.warning("Failed to update bitrate to \(bps): \(status)")
+    }
+  }
+
   private func handleEncodedFrame(_ sampleBuffer: CMSampleBuffer) {
     guard let dataBuffer = sampleBuffer.dataBuffer else { return }
     var totalLength = 0
