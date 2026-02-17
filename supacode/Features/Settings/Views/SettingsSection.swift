@@ -7,5 +7,6 @@ enum SettingsSection: Hashable {
   case updates
   case advanced
   case github
+  case remote
   case repository(Repository.ID)
 }
