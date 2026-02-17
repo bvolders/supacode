@@ -222,7 +222,7 @@ struct WorktreeDetailView: View {
         )
       }
 
-      ToolbarSpacer(.flexible)
+      ToolbarItem { Spacer() }
 
       ToolbarItemGroup {
         ToolbarStatusView(
@@ -233,7 +233,7 @@ struct WorktreeDetailView: View {
       }
 
       if !toolbarState.notificationGroups.isEmpty {
-        ToolbarSpacer(.fixed)
+        ToolbarItem { Spacer().frame(width: 8) }
         ToolbarItemGroup {
           ToolbarNotificationsPopoverButton(
             groups: toolbarState.notificationGroups,
@@ -244,7 +244,7 @@ struct WorktreeDetailView: View {
         }
       }
 
-      ToolbarSpacer(.flexible)
+      ToolbarItem { Spacer() }
 
       ToolbarItemGroup {
         openMenu(
@@ -252,7 +252,7 @@ struct WorktreeDetailView: View {
           showExtras: toolbarState.showExtras
         )
       }
-      ToolbarSpacer(.fixed)
+      ToolbarItem { Spacer().frame(width: 8) }
 
       if toolbarState.runScriptIsRunning || toolbarState.runScriptEnabled {
         ToolbarItem {

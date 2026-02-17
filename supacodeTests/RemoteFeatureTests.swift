@@ -377,7 +377,7 @@ struct RemoteFeatureTests {
       $0.isReconnecting = true
     }
 
-    await store.receive(.attemptReconnect) {
+    await store.receive(\.attemptReconnect) {
       $0.reconnectAttempt = 1
     }
 

@@ -2,7 +2,7 @@ import AppKit
 import CoreMedia
 import CoreVideo
 import Foundation
-import VideoToolbox
+@preconcurrency import VideoToolbox
 
 @MainActor
 final class SurfaceVideoEncoder {

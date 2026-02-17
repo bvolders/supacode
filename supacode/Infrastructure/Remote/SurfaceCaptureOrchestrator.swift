@@ -1,5 +1,5 @@
 import AppKit
-import Foundation
+@preconcurrency import Foundation
 
 @MainActor
 @Observable

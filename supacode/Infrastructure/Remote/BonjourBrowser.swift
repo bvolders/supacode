@@ -1,5 +1,5 @@
 import Foundation
-import Network
+@preconcurrency import Network
 
 nonisolated struct DiscoveredServer: Identifiable, Equatable, Sendable {
   let id: String

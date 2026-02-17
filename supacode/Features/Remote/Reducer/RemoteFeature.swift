@@ -53,9 +53,10 @@ struct RemoteFeature {
       case .toggleServer:
         state.isServerEnabled.toggle()
         if state.isServerEnabled {
+          let serverClient = remoteServerClient
           return .run { send in
-            try remoteServerClient.start()
-            for await event in remoteServerClient.events() {
+            try await serverClient.start()
+            for await event in await serverClient.events() {
               await send(.remoteServerEvent(event))
             }
           }
@@ -69,9 +70,10 @@ struct RemoteFeature {
 
       case .startBrowsing:
         state.isBrowsing = true
-        remoteConnectionClient.startBrowsing()
+        let connectionClient = remoteConnectionClient
+        connectionClient.startBrowsing()
         return .run { send in
-          for await event in remoteConnectionClient.events() {
+          for await event in await connectionClient.events() {
             await send(.remoteConnectionEvent(event))
           }
         }
@@ -177,9 +179,10 @@ struct RemoteFeature {
         state.reconnectAttempt += 1
         let attempt = state.reconnectAttempt
         let delay = min(pow(2.0, Double(attempt - 1)), 30.0)
+        let connectionClient = remoteConnectionClient
         return .run { [clock] _ in
           try await clock.sleep(for: .seconds(delay))
-          await remoteConnectionClient.connect(server)
+          await connectionClient.connect(server)
         }
         .cancellable(id: CancelID.reconnect, cancelInFlight: true)
 

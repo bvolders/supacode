@@ -1,7 +1,7 @@
 import CoreMedia
 import CoreVideo
 import Foundation
-import VideoToolbox
+@preconcurrency import VideoToolbox
 
 @MainActor
 @Observable

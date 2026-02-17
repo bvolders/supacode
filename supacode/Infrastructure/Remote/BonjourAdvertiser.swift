@@ -1,12 +1,12 @@
 import Foundation
-import Network
+@preconcurrency import Network
 import Security
 
 @MainActor
 @Observable
 final class BonjourAdvertiser {
-  static let serviceType = "_supacode._tcp"
-  static let defaultPort: UInt16 = 9847
+  nonisolated static let serviceType = "_supacode._tcp"
+  nonisolated static let defaultPort: UInt16 = 9847
 
   let serverName: String
   private(set) var isAdvertising = false

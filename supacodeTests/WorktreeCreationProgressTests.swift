@@ -27,7 +27,7 @@ struct WorktreeCreationProgressTests {
     #expect(progress.titleText == "Creating swift-otter")
     #expect(
       progress.detailText
-        == "Creating from main branch. Copying 12 ignored files and copying 0 untracked files"
+        == "Creating from main branch. Copying 12 ignored files"
     )
   }
 }
