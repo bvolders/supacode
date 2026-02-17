@@ -20,6 +20,7 @@ final class BonjourBrowser {
   private(set) var isBrowsing = false
   private var browser: NWBrowser?
   private let logger = SupaLogger("Remote")
+  var onServersChanged: (([DiscoveredServer]) -> Void)?
 
   func startBrowsing() {
     let params = NWParameters()
@@ -47,7 +48,8 @@ final class BonjourBrowser {
     }
     browser.browseResultsChangedHandler = { [weak self] results, _ in
       Task { @MainActor in
-        self?.discoveredServers = results.compactMap { result in
+        guard let self else { return }
+        self.discoveredServers = results.compactMap { result in
           guard case .service(let name, _, _, _) = result.endpoint else { return nil }
           return DiscoveredServer(
             id: name,
@@ -55,6 +57,7 @@ final class BonjourBrowser {
             endpoint: result.endpoint,
           )
         }
+        self.onServersChanged?(self.discoveredServers)
       }
     }
     browser.start(queue: .main)

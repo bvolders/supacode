@@ -10,6 +10,7 @@ final class WebSocketServer {
   private let advertiser: BonjourAdvertiser
   private let logger = SupaLogger("Remote")
   var onMessageReceived: ((RemoteMessageType, Data) -> Void)?
+  var onClientDisconnected: (() -> Void)?
 
   init(serverName: String = Host.current().localizedName ?? "Supacode Server") {
     self.advertiser = BonjourAdvertiser(serverName: serverName)
@@ -78,9 +79,13 @@ final class WebSocketServer {
   }
 
   func disconnect() {
+    let wasConnected = isClientConnected
     connection?.cancel()
     connection = nil
     isClientConnected = false
+    if wasConnected {
+      onClientDisconnected?()
+    }
   }
 
   private func handleNewConnection(_ newConnection: NWConnection) {

@@ -41,3 +41,7 @@ nonisolated struct WelcomeMessage: Codable, Sendable {
   let protocolVersion: Int
   let serverName: String
 }
+
+nonisolated struct RemoteVideoPayload: Codable, Sendable {
+  let worktreeID: String
+}
