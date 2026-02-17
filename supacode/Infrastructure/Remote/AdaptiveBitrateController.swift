@@ -32,12 +32,14 @@ final class AdaptiveBitrateController {
     } else if pendingSendCount > Self.congestedThreshold {
       decreaseBitrate()
       consecutiveIdleEvaluations = 0
-    } else if pendingSendCount == 0 {
+    } else if pendingSendCount < 2 {
       consecutiveIdleEvaluations += 1
       if consecutiveIdleEvaluations >= Self.frameRestoreAfterConsecutiveIdle {
         restoreFrameRate()
       }
-      if consecutiveIdleEvaluations >= Self.increaseAfterConsecutiveIdle {
+      if pendingSendCount == 0,
+        consecutiveIdleEvaluations >= Self.increaseAfterConsecutiveIdle
+      {
         increaseBitrate()
       }
     } else {
