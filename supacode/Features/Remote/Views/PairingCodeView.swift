@@ -11,6 +11,7 @@ struct PairingCodeView: View {
       Image(systemName: "lock.shield")
         .font(.system(size: 40))
         .foregroundStyle(.secondary)
+        .accessibilityHidden(true)
 
       Text("Pairing Request")
         .font(.headline)

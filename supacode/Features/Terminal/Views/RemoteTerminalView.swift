@@ -75,8 +75,8 @@ final class RemoteTerminalMTKView: MTKView {
   override func mouseDown(with event: NSEvent) {
     let point = convert(event.locationInWindow, from: nil)
     let remoteEvent = RemoteMouseEvent(
-      x: point.x,
-      y: point.y,
+      positionX: point.x,
+      positionY: point.y,
       button: event.buttonNumber,
       isDown: true,
       modifiers: Self.remoteModifiers(from: event),
@@ -87,8 +87,8 @@ final class RemoteTerminalMTKView: MTKView {
   override func mouseUp(with event: NSEvent) {
     let point = convert(event.locationInWindow, from: nil)
     let remoteEvent = RemoteMouseEvent(
-      x: point.x,
-      y: point.y,
+      positionX: point.x,
+      positionY: point.y,
       button: event.buttonNumber,
       isDown: false,
       modifiers: Self.remoteModifiers(from: event),
@@ -109,7 +109,7 @@ final class RemoteTerminalMTKView: MTKView {
 
   override func draw(_ dirtyRect: NSRect) {
     guard
-      let device,
+      device != nil,
       let commandQueue,
       let currentDrawable,
       let pixelBuffer = currentPixelBuffer,

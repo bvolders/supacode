@@ -607,7 +607,7 @@ struct AppFeature {
       case .commandPalette:
         return .none
 
-      case .remote(._forwardToApp(let remoteAction)):
+      case .remote(.forwardToApp(let remoteAction)):
         switch remoteAction {
         case .selectWorktree(let id):
           return .send(.repositories(.selectWorktree(id)))
@@ -632,7 +632,6 @@ struct AppFeature {
           }
 
         case .closeTab, .selectTab:
-          // TODO: Wire in Phase 4
           return .none
 
         case .runScript(let worktreeID, let script):

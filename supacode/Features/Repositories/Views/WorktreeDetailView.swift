@@ -477,6 +477,7 @@ private struct RemoteTerminalPlaceholderView: View {
       Image(systemName: "network")
         .font(.largeTitle)
         .foregroundStyle(.secondary)
+        .accessibilityHidden(true)
       Text("Remote Terminal")
         .font(.headline)
       Text("Worktree: \(worktreeID)")

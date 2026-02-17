@@ -48,7 +48,7 @@ final class BonjourBrowser {
     browser.browseResultsChangedHandler = { [weak self] results, _ in
       Task { @MainActor in
         self?.discoveredServers = results.compactMap { result in
-          guard case let .service(name, _, _, _) = result.endpoint else { return nil }
+          guard case .service(let name, _, _, _) = result.endpoint else { return nil }
           return DiscoveredServer(
             id: name,
             name: name,

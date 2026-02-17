@@ -68,7 +68,7 @@ struct RemoteFeatureTests {
     var state = RemoteFeature.State()
     state.connectedServerName = "Test Mac"
     state.remoteRepositories = [
-      RemoteRepository(id: "r1", name: "repo", worktrees: []),
+      RemoteRepository(id: "r1", name: "repo", worktrees: [])
     ]
     state.remoteSelectedWorktreeID = "wt1"
 
@@ -138,7 +138,7 @@ struct RemoteFeatureTests {
     var state = RemoteFeature.State()
     state.connectedServerName = "MacBook Pro"
     state.remoteRepositories = [
-      RemoteRepository(id: "r1", name: "repo", worktrees: []),
+      RemoteRepository(id: "r1", name: "repo", worktrees: [])
     ]
     state.remoteSelectedWorktreeID = "wt1"
 

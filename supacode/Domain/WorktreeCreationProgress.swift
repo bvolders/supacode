@@ -42,7 +42,7 @@ nonisolated struct WorktreeCreationProgress: Hashable, Sendable {
       return "Checking repository mode"
     case .resolvingBaseReference:
       return "Resolving base reference (\(baseRefDisplay))"
-  case .creatingWorktree:
+    case .creatingWorktree:
       var copyDetails: [String] = []
       if copyIgnored == true {
         let ignoredCount = ignoredFilesToCopyCount ?? 0

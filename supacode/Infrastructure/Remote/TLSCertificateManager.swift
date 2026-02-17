@@ -202,8 +202,8 @@ private enum ASN1 {
     var encoded = Data()
     guard oid.count >= 2 else { return tag(0x06, content: encoded) }
     encoded.append(UInt8(oid[0] * 40 + oid[1]))
-    for i in 2..<oid.count {
-      encoded.append(contentsOf: encodeOIDComponent(oid[i]))
+    for index in 2..<oid.count {
+      encoded.append(contentsOf: encodeOIDComponent(oid[index]))
     }
     return tag(0x06, content: encoded)
   }
@@ -242,10 +242,10 @@ private enum ASN1 {
   }
 
   static func validity(notBefore: Date, notAfter: Date) -> Data {
-    var v = Data()
-    v.append(utcTime(notBefore))
-    v.append(utcTime(notAfter))
-    return sequence(v)
+    var validityData = Data()
+    validityData.append(utcTime(notBefore))
+    validityData.append(utcTime(notAfter))
+    return sequence(validityData)
   }
 
   static func rsaPublicKeyInfo(_ publicKeyData: Data) -> Data {
@@ -296,12 +296,12 @@ private enum ASN1 {
       return [UInt8(value)]
     }
     var result: [UInt8] = []
-    var v = value
-    result.append(UInt8(v & 0x7F))
-    v >>= 7
-    while v > 0 {
-      result.insert(UInt8((v & 0x7F) | 0x80), at: 0)
-      v >>= 7
+    var remaining = value
+    result.append(UInt8(remaining & 0x7F))
+    remaining >>= 7
+    while remaining > 0 {
+      result.insert(UInt8((remaining & 0x7F) | 0x80), at: 0)
+      remaining >>= 7
     }
     return result
   }

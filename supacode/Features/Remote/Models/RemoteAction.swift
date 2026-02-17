@@ -33,8 +33,8 @@ enum RemoteModifier: String, Codable, Equatable, Sendable {
 }
 
 nonisolated struct RemoteMouseEvent: Codable, Equatable, Sendable {
-  let x: Double
-  let y: Double
+  let positionX: Double
+  let positionY: Double
   let button: Int
   let isDown: Bool
   let modifiers: Set<RemoteModifier>

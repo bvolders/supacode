@@ -35,7 +35,7 @@ final class WebSocketServer {
     var frame = Self.encodeFrameHeader(type: type, payloadLength: payload.count)
     frame.append(payload)
     let metadata = NWProtocolWebSocket.Metadata(
-      opCode: type == .videoFrame || type == .videoConfig ? .binary : .text,
+      opcode: type == .videoFrame || type == .videoConfig ? .binary : .text,
     )
     let context = NWConnection.ContentContext(
       identifier: "remote",

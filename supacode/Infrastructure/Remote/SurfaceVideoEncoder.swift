@@ -158,13 +158,12 @@ final class SurfaceVideoEncoder {
     guard let dataPointer, totalLength > 0 else { return }
 
     let data = Data(bytes: dataPointer, count: totalLength)
-    let attachments = CMSampleBufferGetSampleAttachmentsArray(
-      sampleBuffer,
-      createIfNecessary: false,
-    ) as? [[CFString: Any]]
-    let isKeyFrame = !(
-      attachments?.first?[kCMSampleAttachmentKey_NotSync] as? Bool ?? false
-    )
+    let attachments =
+      CMSampleBufferGetSampleAttachmentsArray(
+        sampleBuffer,
+        createIfNecessary: false,
+      ) as? [[CFString: Any]]
+    let isKeyFrame = !(attachments?.first?[kCMSampleAttachmentKey_NotSync] as? Bool ?? false)
 
     onEncodedFrame?(data, isKeyFrame)
   }

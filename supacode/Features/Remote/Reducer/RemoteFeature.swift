@@ -38,7 +38,7 @@ struct RemoteFeature {
     case sendRemoteAction(RemoteAction)
     case approveConnection
     case denyConnection
-    case _forwardToApp(RemoteAction)
+    case forwardToApp(RemoteAction)
     case attemptReconnect
     case cancelReconnect
   }
@@ -120,7 +120,7 @@ struct RemoteFeature {
           state.activePairingCode = nil
           return .none
         case .actionReceived(let action):
-          return .send(._forwardToApp(action))
+          return .send(.forwardToApp(action))
         case .inputReceived, .videoRequested, .videoStopped:
           return .none
         }
@@ -139,7 +139,7 @@ struct RemoteFeature {
         remoteServerClient.disconnectClient()
         return .none
 
-      case ._forwardToApp:
+      case .forwardToApp:
         return .none
 
       case .remoteConnectionEvent(let event):
@@ -177,7 +177,7 @@ struct RemoteFeature {
         state.reconnectAttempt += 1
         let attempt = state.reconnectAttempt
         let delay = min(pow(2.0, Double(attempt - 1)), 30.0)
-        return .run { [clock] send in
+        return .run { [clock] _ in
           try await clock.sleep(for: .seconds(delay))
           await remoteConnectionClient.connect(server)
         }

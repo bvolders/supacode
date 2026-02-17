@@ -62,7 +62,7 @@ final class WebSocketClient {
     guard let connection else { return }
     var frame = Self.encodeFrameHeader(type: type, payloadLength: payload.count)
     frame.append(payload)
-    let metadata = NWProtocolWebSocket.Metadata(opCode: .text)
+    let metadata = NWProtocolWebSocket.Metadata(opcode: .text)
     let context = NWConnection.ContentContext(
       identifier: "remote",
       metadata: [metadata],

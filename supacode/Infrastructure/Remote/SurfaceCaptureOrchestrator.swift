@@ -41,7 +41,7 @@ final class SurfaceCaptureOrchestrator {
       server.send(type: .videoConfig, payload: parameterSets)
     }
 
-    encoder.onEncodedFrame = { [weak self] data, isKeyFrame in
+    encoder.onEncodedFrame = { [weak self] data, _ in
       self?.server.send(type: .videoFrame, payload: data)
     }
     encoders[worktreeID] = encoder

@@ -10,6 +10,7 @@ struct ConnectionApprovalView: View {
       Image(systemName: "network.badge.shield.half.filled")
         .font(.system(size: 40))
         .foregroundStyle(.secondary)
+        .accessibilityHidden(true)
 
       Text("Connection Request")
         .font(.headline)

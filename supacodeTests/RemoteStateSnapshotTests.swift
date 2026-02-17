@@ -17,7 +17,7 @@ struct RemoteStateSnapshotTests {
               name: "feature",
               detail: "feature/login",
               tabs: [
-                RemoteTab(id: UUID(), title: "zsh", isDirty: false),
+                RemoteTab(id: UUID(), title: "zsh", isDirty: false)
               ],
               info: RemoteWorktreeInfo(
                 addedLines: 42,
