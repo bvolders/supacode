@@ -225,6 +225,8 @@ struct RemoteFeatureTests {
 
     let store = TestStore(initialState: state) {
       RemoteFeature()
+    } withDependencies: {
+      $0.remoteServerClient.sendWelcome = {}
     }
 
     await store.send(.approveConnection) {
@@ -232,14 +234,18 @@ struct RemoteFeatureTests {
       $0.pendingConnectionName = nil
       $0.activePairingCode = nil
     }
+    await store.receive(\.sendWelcome)
   }
 
   @Test func approveConnectionDoesNothingWithoutPending() async {
     let store = TestStore(initialState: RemoteFeature.State()) {
       RemoteFeature()
+    } withDependencies: {
+      $0.remoteServerClient.sendWelcome = {}
     }
 
     await store.send(.approveConnection)
+    await store.receive(\.sendWelcome)
   }
 
   @Test func denyConnectionClearsPendingAndDisconnectsClient() async {
@@ -299,12 +305,15 @@ struct RemoteFeatureTests {
     state.activePairingCode = "123456"
     let store = TestStore(initialState: state) {
       RemoteFeature()
+    } withDependencies: {
+      $0.remoteServerClient.sendWelcome = {}
     }
     await store.send(.approveConnection) {
       $0.connectedClientName = "iPhone"
       $0.pendingConnectionName = nil
       $0.activePairingCode = nil
     }
+    await store.receive(\.sendWelcome)
   }
 
   @Test func denyConnectionClearsPairingCode() async {

@@ -38,6 +38,8 @@ struct RemoteFeature {
     case sendRemoteAction(RemoteAction)
     case approveConnection
     case denyConnection
+    case sendWelcome
+    case sendStateSnapshot(RemoteStateSnapshot)
     case forwardToApp(RemoteAction)
     case attemptReconnect
     case cancelReconnect
@@ -133,6 +135,14 @@ struct RemoteFeature {
           state.pendingConnectionName = nil
           state.activePairingCode = nil
         }
+        return .send(.sendWelcome)
+
+      case .sendWelcome:
+        remoteServerClient.sendWelcome()
+        return .none
+
+      case .sendStateSnapshot(let snapshot):
+        remoteServerClient.sendStateSnapshot(snapshot)
         return .none
 
       case .denyConnection:

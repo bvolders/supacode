@@ -182,21 +182,34 @@ struct AppFeature {
       case .repositories(.delegate(.worktreeCreated(let worktree))):
         let shouldRunSetupScript =
           state.repositories.pendingSetupScriptWorktreeIDs.contains(worktree.id)
-        return .run { _ in
-          await terminalClient.send(
-            .ensureInitialTab(
-              worktree,
-              runSetupScriptIfNew: shouldRunSetupScript,
-              focusing: false
+        let shouldSyncRemote = state.remote.connectedClientName != nil
+        let remoteSync: Effect<Action> =
+          shouldSyncRemote
+          ? .send(.remote(.sendStateSnapshot(Self.buildStateSnapshot(from: state))))
+          : .none
+        return .merge(
+          .run { _ in
+            await terminalClient.send(
+              .ensureInitialTab(
+                worktree,
+                runSetupScriptIfNew: shouldRunSetupScript,
+                focusing: false
+              )
             )
-          )
-        }
+          },
+          remoteSync
+        )
 
       case .repositories(.delegate(.repositoriesChanged(let repositories))):
         let ids = Set(repositories.flatMap { $0.worktrees.map(\.id) })
         let recencyIDs = CommandPaletteFeature.recencyRetentionIDs(from: repositories)
         let worktrees = state.repositories.worktreesForInfoWatcher()
+        let shouldSyncRemote = state.remote.connectedClientName != nil
         state.runScriptStatusByWorktreeID = state.runScriptStatusByWorktreeID.filter { ids.contains($0.key) }
+        let remoteSync: Effect<Action> =
+          shouldSyncRemote
+          ? .send(.remote(.sendStateSnapshot(Self.buildStateSnapshot(from: state))))
+          : .none
         if case .repository(let repositoryID)? = state.settings.selection,
           !repositories.contains(where: { $0.id == repositoryID })
         {
@@ -208,7 +221,8 @@ struct AppFeature {
             },
             .run { _ in
               await worktreeInfoWatcher.send(.setWorktrees(worktrees))
-            }
+            },
+            remoteSync
           )
         }
         return .merge(
@@ -218,7 +232,8 @@ struct AppFeature {
           },
           .run { _ in
             await worktreeInfoWatcher.send(.setWorktrees(worktrees))
-          }
+          },
+          remoteSync
         )
 
       case .repositories(.delegate(.openRepositorySettings(let repositoryID))):
@@ -607,6 +622,10 @@ struct AppFeature {
       case .commandPalette:
         return .none
 
+      case .remote(.approveConnection):
+        let snapshot = Self.buildStateSnapshot(from: state)
+        return .send(.remote(.sendStateSnapshot(snapshot)))
+
       case .remote(.forwardToApp(let remoteAction)):
         switch remoteAction {
         case .selectWorktree(let id):
@@ -722,5 +741,28 @@ struct AppFeature {
     Scope(state: \.remote, action: \.remote) {
       RemoteFeature()
     }
+  }
+
+  static func buildStateSnapshot(from state: State) -> RemoteStateSnapshot {
+    let repos = state.repositories.repositories.map { repo in
+      RemoteRepository(
+        id: repo.id,
+        name: repo.name,
+        worktrees: repo.worktrees.map { worktree in
+          let info = state.repositories.worktreeInfoByID[worktree.id]
+            .map(RemoteWorktreeInfo.init(from:))
+          return RemoteWorktree(
+            from: worktree,
+            tabs: [],
+            info: info,
+            taskStatus: .idle,
+          )
+        },
+      )
+    }
+    return RemoteStateSnapshot(
+      repositories: repos,
+      selectedWorktreeID: state.repositories.selectedWorktreeID,
+    )
   }
 }

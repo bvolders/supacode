@@ -11,6 +11,7 @@ struct RemoteSettingsView: View {
       Form {
         serverSection
         clientSection
+        remoteRepositoriesSection
       }
       .formStyle(.grouped)
     }
@@ -124,6 +125,45 @@ struct RemoteSettingsView: View {
           remoteStore.send(.cancelReconnect)
         }
       }
+    }
+  }
+
+  // MARK: - Remote Repositories Section
+
+  @ViewBuilder
+  private var remoteRepositoriesSection: some View {
+    if remoteStore.connectedServerName != nil, !remoteStore.remoteRepositories.isEmpty {
+      Section("Remote Repositories") {
+        ForEach(remoteStore.remoteRepositories, id: \.id) { repo in
+          DisclosureGroup(repo.name) {
+            ForEach(repo.worktrees, id: \.id) { worktree in
+              HStack {
+                VStack(alignment: .leading) {
+                  Text(worktree.name)
+                    .font(.body)
+                  Text(worktree.detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+                Spacer()
+                taskStatusIndicator(worktree.taskStatus)
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  @ViewBuilder
+  private func taskStatusIndicator(_ status: RemoteTaskStatus) -> some View {
+    switch status {
+    case .running:
+      Image(systemName: "bolt.fill")
+        .foregroundStyle(.green)
+        .accessibilityLabel("Running")
+    case .idle:
+      EmptyView()
     }
   }
 }

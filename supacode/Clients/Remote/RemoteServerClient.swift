@@ -7,6 +7,7 @@ struct RemoteServerClient {
   var disconnectClient: @MainActor @Sendable () -> Void
   var isRunning: @MainActor @Sendable () -> Bool
   var isClientConnected: @MainActor @Sendable () -> Bool
+  var sendWelcome: @MainActor @Sendable () -> Void
   var sendStateSnapshot: @MainActor @Sendable (RemoteStateSnapshot) -> Void
   var events: @MainActor @Sendable () -> AsyncStream<RemoteServerEvent>
 }
@@ -38,6 +39,13 @@ extension RemoteServerClient {
       },
       isClientConnected: {
         server.isClientConnected
+      },
+      sendWelcome: {
+        let welcome = WelcomeMessage(
+          protocolVersion: 1,
+          serverName: Host.current().localizedName ?? "Supacode Server"
+        )
+        server.sendJSON(type: .welcome, value: welcome)
       },
       sendStateSnapshot: { snapshot in
         server.sendJSON(type: .stateSnapshot, value: snapshot)
@@ -112,6 +120,7 @@ extension RemoteServerClient: DependencyKey {
     disconnectClient: { fatalError("RemoteServerClient.disconnectClient not configured") },
     isRunning: { false },
     isClientConnected: { false },
+    sendWelcome: {},
     sendStateSnapshot: { _ in },
     events: { AsyncStream { $0.finish() } },
   )
@@ -122,6 +131,7 @@ extension RemoteServerClient: DependencyKey {
     disconnectClient: {},
     isRunning: { false },
     isClientConnected: { false },
+    sendWelcome: {},
     sendStateSnapshot: { _ in },
     events: { AsyncStream { $0.finish() } },
   )
