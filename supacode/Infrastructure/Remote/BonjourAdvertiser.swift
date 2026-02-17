@@ -1,5 +1,6 @@
 import Foundation
 import Network
+import Security
 
 @MainActor
 @Observable
@@ -18,9 +19,20 @@ final class BonjourAdvertiser {
 
   func start(
     port: UInt16 = BonjourAdvertiser.defaultPort,
+    tlsIdentity: SecIdentity? = nil,
     onNewConnection: @escaping @Sendable (NWConnection) -> Void
   ) throws {
-    let params = NWParameters.tcp
+    let params: NWParameters
+    if let tlsIdentity {
+      let tlsOptions = NWProtocolTLS.Options()
+      sec_protocol_options_set_local_identity(
+        tlsOptions.securityProtocolOptions,
+        sec_identity_create(tlsIdentity)!,
+      )
+      params = NWParameters(tls: tlsOptions)
+    } else {
+      params = NWParameters.tcp
+    }
     let wsOptions = NWProtocolWebSocket.Options()
     wsOptions.autoReplyPing = true
     params.defaultProtocolStack.applicationProtocols.insert(wsOptions, at: 0)
