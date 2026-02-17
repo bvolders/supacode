@@ -1,5 +1,6 @@
 import ComposableArchitecture
 import Foundation
+import Network
 
 private enum CancelID {
   static let reconnect = "remote.reconnect"
@@ -30,6 +31,7 @@ struct RemoteFeature {
     case startBrowsing
     case stopBrowsing
     case connectToServer(DiscoveredServer)
+    case connectToAddress(String)
     case disconnect
     case remoteServerEvent(RemoteServerEvent)
     case remoteConnectionEvent(RemoteConnectionEvent)
@@ -80,6 +82,14 @@ struct RemoteFeature {
         return .none
 
       case .connectToServer(let server):
+        state.lastConnectedServer = server
+        remoteConnectionClient.connect(server)
+        return .none
+
+      case .connectToAddress(let address):
+        guard let server = Self.parseAddress(address) else {
+          return .none
+        }
         state.lastConnectedServer = server
         remoteConnectionClient.connect(server)
         return .none
@@ -180,5 +190,34 @@ struct RemoteFeature {
         return .cancel(id: CancelID.reconnect)
       }
     }
+  }
+
+  private static func parseAddress(_ address: String) -> DiscoveredServer? {
+    let host: String
+    let portString: String
+
+    if address.hasPrefix("[") {
+      // IPv6: [::1]:9847
+      guard let closeBracket = address.firstIndex(of: "]") else { return nil }
+      host = String(address[address.index(after: address.startIndex)..<closeBracket])
+      let afterBracket = address.index(after: closeBracket)
+      guard afterBracket < address.endIndex, address[afterBracket] == ":" else { return nil }
+      portString = String(address[address.index(after: afterBracket)...])
+    } else {
+      // IPv4 or hostname: host:port
+      guard let lastColon = address.lastIndex(of: ":") else { return nil }
+      host = String(address[..<lastColon])
+      portString = String(address[address.index(after: lastColon)...])
+    }
+
+    guard let portNumber = UInt16(portString), portNumber > 0 else { return nil }
+    guard let nwPort = NWEndpoint.Port(rawValue: portNumber) else { return nil }
+
+    let id = "manual-\(address)"
+    return DiscoveredServer(
+      id: id,
+      name: address,
+      endpoint: .hostPort(host: NWEndpoint.Host(host), port: nwPort),
+    )
   }
 }

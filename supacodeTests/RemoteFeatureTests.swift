@@ -518,4 +518,91 @@ struct RemoteFeatureTests {
 
     await store.send(.attemptReconnect)
   }
+
+  // MARK: - Manual Connection Tests
+
+  @Test func connectToAddressWithValidHostPort() async {
+    let connectedServer = LockIsolated<DiscoveredServer?>(nil)
+    let store = TestStore(initialState: RemoteFeature.State()) {
+      RemoteFeature()
+    } withDependencies: {
+      $0.remoteConnectionClient.connect = { server in
+        connectedServer.withValue { $0 = server }
+      }
+    }
+
+    await store.send(.connectToAddress("192.168.1.100:9847")) {
+      $0.lastConnectedServer = DiscoveredServer(
+        id: "manual-192.168.1.100:9847",
+        name: "192.168.1.100:9847",
+        endpoint: NWEndpoint.hostPort(
+          host: NWEndpoint.Host("192.168.1.100"),
+          port: NWEndpoint.Port(rawValue: 9847)!,
+        ),
+      )
+    }
+    #expect(connectedServer.value?.id == "manual-192.168.1.100:9847")
+  }
+
+  @Test func connectToAddressWithHostname() async {
+    let connectedServer = LockIsolated<DiscoveredServer?>(nil)
+    let store = TestStore(initialState: RemoteFeature.State()) {
+      RemoteFeature()
+    } withDependencies: {
+      $0.remoteConnectionClient.connect = { server in
+        connectedServer.withValue { $0 = server }
+      }
+    }
+
+    await store.send(.connectToAddress("my-mac.tail12345.ts.net:9847")) {
+      $0.lastConnectedServer = DiscoveredServer(
+        id: "manual-my-mac.tail12345.ts.net:9847",
+        name: "my-mac.tail12345.ts.net:9847",
+        endpoint: NWEndpoint.hostPort(
+          host: NWEndpoint.Host("my-mac.tail12345.ts.net"),
+          port: NWEndpoint.Port(rawValue: 9847)!,
+        ),
+      )
+    }
+    #expect(connectedServer.value?.name == "my-mac.tail12345.ts.net:9847")
+  }
+
+  @Test func connectToAddressWithInvalidFormat() async {
+    let store = TestStore(initialState: RemoteFeature.State()) {
+      RemoteFeature()
+    }
+    // Missing port — should not crash, should not change state
+    await store.send(.connectToAddress("192.168.1.100"))
+  }
+
+  @Test func connectToAddressWithInvalidPort() async {
+    let store = TestStore(initialState: RemoteFeature.State()) {
+      RemoteFeature()
+    }
+    // Port out of range
+    await store.send(.connectToAddress("192.168.1.100:99999"))
+  }
+
+  @Test func connectToAddressWithIPv6() async {
+    let connectedServer = LockIsolated<DiscoveredServer?>(nil)
+    let store = TestStore(initialState: RemoteFeature.State()) {
+      RemoteFeature()
+    } withDependencies: {
+      $0.remoteConnectionClient.connect = { server in
+        connectedServer.withValue { $0 = server }
+      }
+    }
+
+    await store.send(.connectToAddress("[::1]:9847")) {
+      $0.lastConnectedServer = DiscoveredServer(
+        id: "manual-[::1]:9847",
+        name: "[::1]:9847",
+        endpoint: NWEndpoint.hostPort(
+          host: NWEndpoint.Host("::1"),
+          port: NWEndpoint.Port(rawValue: 9847)!,
+        ),
+      )
+    }
+    #expect(connectedServer.value != nil)
+  }
 }
