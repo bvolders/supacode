@@ -111,7 +111,7 @@ final class TLSCertificateManager {
     var tbs = Data()
 
     // Version: v3 (2) — explicit tag [0]
-    tbs.append(ASN1.contextTag(0, constructed: true, content: ASN1.integer(Data([0x02]))))
+    tbs.append(ASN1.contextTag(0, content: ASN1.integer(Data([0x02]))))
 
     // Serial number
     let serial = Data([0x01])
@@ -198,10 +198,6 @@ private enum ASN1 {
     return tag(0x03, content: payload)
   }
 
-  static func octetString(_ content: Data) -> Data {
-    tag(0x04, content: content)
-  }
-
   static func objectIdentifier(_ oid: [UInt]) -> Data {
     var encoded = Data()
     guard oid.count >= 2 else { return tag(0x06, content: encoded) }
@@ -224,7 +220,7 @@ private enum ASN1 {
     return tag(0x17, content: Data(str.utf8))
   }
 
-  static func contextTag(_ tagNumber: UInt8, constructed: Bool, content: Data) -> Data {
+  static func contextTag(_ tagNumber: UInt8, content: Data) -> Data {
     let tagByte: UInt8 = 0xA0 | tagNumber
     return tag(tagByte, content: content)
   }
