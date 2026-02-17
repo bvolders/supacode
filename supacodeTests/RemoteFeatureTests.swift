@@ -89,10 +89,11 @@ struct RemoteFeatureTests {
     let store = TestStore(initialState: RemoteFeature.State()) {
       RemoteFeature()
     }
-
-    await store.send(.remoteServerEvent(.clientConnected(name: "iPhone"))) {
-      $0.pendingConnectionName = "iPhone"
-    }
+    store.exhaustivity = .off
+    await store.send(.remoteServerEvent(.clientConnected(name: "iPhone")))
+    #expect(store.state.pendingConnectionName == "iPhone")
+    #expect(store.state.activePairingCode?.count == 6)
+    #expect(Int(store.state.activePairingCode ?? "") != nil)
   }
 
   @Test func serverEventClientDisconnectedClearsClientName() async {
@@ -111,6 +112,7 @@ struct RemoteFeatureTests {
   @Test func serverEventClientDisconnectedClearsPendingConnection() async {
     var state = RemoteFeature.State()
     state.pendingConnectionName = "iPhone"
+    state.activePairingCode = "123456"
 
     let store = TestStore(initialState: state) {
       RemoteFeature()
@@ -118,6 +120,7 @@ struct RemoteFeatureTests {
 
     await store.send(.remoteServerEvent(.clientDisconnected)) {
       $0.pendingConnectionName = nil
+      $0.activePairingCode = nil
     }
   }
 
@@ -218,6 +221,7 @@ struct RemoteFeatureTests {
   @Test func approveConnectionMovePendingToConnected() async {
     var state = RemoteFeature.State()
     state.pendingConnectionName = "iPhone"
+    state.activePairingCode = "123456"
 
     let store = TestStore(initialState: state) {
       RemoteFeature()
@@ -226,6 +230,7 @@ struct RemoteFeatureTests {
     await store.send(.approveConnection) {
       $0.connectedClientName = "iPhone"
       $0.pendingConnectionName = nil
+      $0.activePairingCode = nil
     }
   }
 
@@ -241,6 +246,7 @@ struct RemoteFeatureTests {
     let disconnectClientCalled = LockIsolated(false)
     var state = RemoteFeature.State()
     state.pendingConnectionName = "iPhone"
+    state.activePairingCode = "123456"
 
     let store = TestStore(initialState: state) {
       RemoteFeature()
@@ -250,6 +256,7 @@ struct RemoteFeatureTests {
 
     await store.send(.denyConnection) {
       $0.pendingConnectionName = nil
+      $0.activePairingCode = nil
     }
     #expect(disconnectClientCalled.value)
   }
@@ -258,6 +265,7 @@ struct RemoteFeatureTests {
     var state = RemoteFeature.State()
     state.isServerEnabled = true
     state.pendingConnectionName = "iPhone"
+    state.activePairingCode = "123456"
 
     let store = TestStore(initialState: state) {
       RemoteFeature()
@@ -268,6 +276,68 @@ struct RemoteFeatureTests {
     await store.send(.toggleServer) {
       $0.isServerEnabled = false
       $0.pendingConnectionName = nil
+      $0.activePairingCode = nil
+    }
+  }
+
+  // MARK: - Pairing Code Tests
+
+  @Test func clientConnectedGeneratesPairingCode() async {
+    let store = TestStore(initialState: RemoteFeature.State()) {
+      RemoteFeature()
+    }
+    store.exhaustivity = .off
+    await store.send(.remoteServerEvent(.clientConnected(name: "iPhone")))
+    #expect(store.state.pendingConnectionName == "iPhone")
+    #expect(store.state.activePairingCode?.count == 6)
+    #expect(Int(store.state.activePairingCode ?? "") != nil)
+  }
+
+  @Test func approveConnectionClearsPairingCode() async {
+    var state = RemoteFeature.State()
+    state.pendingConnectionName = "iPhone"
+    state.activePairingCode = "123456"
+    let store = TestStore(initialState: state) {
+      RemoteFeature()
+    }
+    await store.send(.approveConnection) {
+      $0.connectedClientName = "iPhone"
+      $0.pendingConnectionName = nil
+      $0.activePairingCode = nil
+    }
+  }
+
+  @Test func denyConnectionClearsPairingCode() async {
+    let disconnectClientCalled = LockIsolated(false)
+    var state = RemoteFeature.State()
+    state.pendingConnectionName = "iPhone"
+    state.activePairingCode = "123456"
+    let store = TestStore(initialState: state) {
+      RemoteFeature()
+    } withDependencies: {
+      $0.remoteServerClient.disconnectClient = { disconnectClientCalled.withValue { $0 = true } }
+    }
+    await store.send(.denyConnection) {
+      $0.pendingConnectionName = nil
+      $0.activePairingCode = nil
+    }
+    #expect(disconnectClientCalled.value)
+  }
+
+  @Test func toggleServerOffClearsPairingCode() async {
+    var state = RemoteFeature.State()
+    state.isServerEnabled = true
+    state.activePairingCode = "123456"
+    state.pendingConnectionName = "iPhone"
+    let store = TestStore(initialState: state) {
+      RemoteFeature()
+    } withDependencies: {
+      $0.remoteServerClient.stop = {}
+    }
+    await store.send(.toggleServer) {
+      $0.isServerEnabled = false
+      $0.pendingConnectionName = nil
+      $0.activePairingCode = nil
     }
   }
 

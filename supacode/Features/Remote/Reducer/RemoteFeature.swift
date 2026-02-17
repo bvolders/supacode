@@ -12,6 +12,7 @@ struct RemoteFeature {
     var isServerEnabled = false
     var connectedClientName: String?
     var pendingConnectionName: String?
+    var activePairingCode: String?
     var connectedServerName: String?
     var discoveredServers: [DiscoveredServer] = []
     var remoteRepositories: [RemoteRepository] = []
@@ -60,6 +61,7 @@ struct RemoteFeature {
           remoteServerClient.stop()
           state.connectedClientName = nil
           state.pendingConnectionName = nil
+          state.activePairingCode = nil
           return .none
         }
 
@@ -100,10 +102,12 @@ struct RemoteFeature {
         switch event {
         case .clientConnected(let name):
           state.pendingConnectionName = name
+          state.activePairingCode = String(format: "%06d", Int.random(in: 0...999_999))
           return .none
         case .clientDisconnected:
           state.connectedClientName = nil
           state.pendingConnectionName = nil
+          state.activePairingCode = nil
           return .none
         case .actionReceived(let action):
           return .send(._forwardToApp(action))
@@ -115,11 +119,13 @@ struct RemoteFeature {
         if let name = state.pendingConnectionName {
           state.connectedClientName = name
           state.pendingConnectionName = nil
+          state.activePairingCode = nil
         }
         return .none
 
       case .denyConnection:
         state.pendingConnectionName = nil
+        state.activePairingCode = nil
         remoteServerClient.disconnectClient()
         return .none
 
