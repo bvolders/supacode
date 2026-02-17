@@ -1,5 +1,6 @@
 import Foundation
 import Network
+import Security
 
 @MainActor
 @Observable
@@ -10,9 +11,18 @@ final class WebSocketClient {
   private let logger = SupaLogger("Remote")
   var onMessageReceived: ((RemoteMessageType, Data) -> Void)?
   var onDisconnected: (() -> Void)?
+  var pairingCode: String?
 
   func connect(to server: DiscoveredServer) {
-    let params = NWParameters.tcp
+    let tlsOptions = NWProtocolTLS.Options()
+    sec_protocol_options_set_verify_block(
+      tlsOptions.securityProtocolOptions,
+      { _, _, completion in
+        completion(true)  // Accept all self-signed certs for LAN use
+      },
+      .main,
+    )
+    let params = NWParameters(tls: tlsOptions)
     let wsOptions = NWProtocolWebSocket.Options()
     wsOptions.autoReplyPing = true
     params.defaultProtocolStack.applicationProtocols.insert(wsOptions, at: 0)
@@ -89,6 +99,7 @@ final class WebSocketClient {
       protocolVersion: 1,
       appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev",
       clientName: Host.current().localizedName ?? "Supacode Client",
+      pairingCode: pairingCode,
     )
     sendJSON(type: .hello, value: hello)
   }
