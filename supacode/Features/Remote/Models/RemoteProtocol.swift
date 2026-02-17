@@ -34,6 +34,7 @@ nonisolated struct HelloMessage: Codable, Sendable {
   let protocolVersion: Int
   let appVersion: String
   let clientName: String
+  var pairingCode: String?
 }
 
 nonisolated struct WelcomeMessage: Codable, Sendable {

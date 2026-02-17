@@ -35,6 +35,29 @@ struct RemoteProtocolTests {
     #expect(decoded.serverName == "Henry's Mac Mini")
   }
 
+  @Test func helloMessageWithPairingCodeRoundTrips() throws {
+    let hello = HelloMessage(
+      protocolVersion: 1,
+      appVersion: "0.6.0",
+      clientName: "Test MacBook",
+      pairingCode: "123456",
+    )
+    let data = try JSONEncoder().encode(hello)
+    let decoded = try JSONDecoder().decode(HelloMessage.self, from: data)
+    #expect(decoded.pairingCode == "123456")
+  }
+
+  @Test func helloMessageWithoutPairingCodeRoundTrips() throws {
+    let hello = HelloMessage(
+      protocolVersion: 1,
+      appVersion: "0.6.0",
+      clientName: "Test MacBook",
+    )
+    let data = try JSONEncoder().encode(hello)
+    let decoded = try JSONDecoder().decode(HelloMessage.self, from: data)
+    #expect(decoded.pairingCode == nil)
+  }
+
   @Test func remoteFrameHeaderEncodesCorrectly() {
     let header = RemoteFrameHeader(
       type: .stateSnapshot,
